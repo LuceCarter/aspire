@@ -7,7 +7,7 @@ using MongoDB.Driver;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var db = builder.AddMongoDB("mongo")
+var db = builder.AddMongoDBAtlas("mongo")
     .WithMongoExpress(c => c.WithHostPort(3022))
     .AddDatabase("db")
     .OnResourceReady(async (db, @event, ct) =>{

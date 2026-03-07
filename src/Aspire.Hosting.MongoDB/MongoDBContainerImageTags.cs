@@ -15,6 +15,15 @@ internal static class MongoDBContainerImageTags
     public const string Tag = "8.2";
 
     /// <remarks>docker.io</remarks>
+    public const string AtlasLocalRegistry = "docker.io";
+
+    /// <remarks>mongodb/mongodb-atlas-local</remarks>
+    public const string AtlasLocalImage = "mongodb/mongodb-atlas-local";
+
+    /// <remarks>latest</remarks>
+    public const string AtlasLocalTag = "latest";
+
+    /// <remarks>docker.io</remarks>
     public const string MongoExpressRegistry = "docker.io";
 
     /// <remarks>library/mongo-express</remarks>

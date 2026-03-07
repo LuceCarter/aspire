@@ -12,6 +12,118 @@ namespace Aspire.Hosting.MongoDB.Tests;
 public class AddMongoDBTests(ITestOutputHelper testOutputHelper)
 {
     [Fact]
+    public void AddMongoDBAtlasContainerWithDefaultsAddsAnnotationMetadata()
+    {
+        var appBuilder = DistributedApplication.CreateBuilder();
+
+        appBuilder.AddMongoDBAtlas("mongodb-atlas");
+
+        using var app = appBuilder.Build();
+
+        var appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+        var containerResource = Assert.Single(appModel.Resources.OfType<MongoDBServerResource>());
+        Assert.Equal("mongodb-atlas", containerResource.Name);
+
+        var endpoint = Assert.Single(containerResource.Annotations.OfType<EndpointAnnotation>());
+        Assert.Equal(27017, endpoint.TargetPort);
+        Assert.Equal("tcp", endpoint.Name);
+
+        var containerAnnotation = Assert.Single(containerResource.Annotations.OfType<ContainerImageAnnotation>());
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalTag, containerAnnotation.Tag);
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalImage, containerAnnotation.Image);
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalRegistry, containerAnnotation.Registry);
+    }
+
+    [Fact]
+    public void AddMongoDBAtlasDoesNotSetAuthEnvironmentVariables()
+    {
+        var appBuilder = DistributedApplication.CreateBuilder();
+
+        appBuilder.AddMongoDBAtlas("mongodb-atlas");
+
+        using var app = appBuilder.Build();
+
+        var appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+        var containerResource = Assert.Single(appModel.Resources.OfType<MongoDBServerResource>());
+
+        var envAnnotations = containerResource.Annotations.OfType<EnvironmentCallbackAnnotation>();
+        Assert.Empty(envAnnotations);
+        Assert.Null(containerResource.PasswordParameter);
+        Assert.Null(containerResource.UserNameParameter);
+    }
+
+    [Fact]
+    public async Task AddMongoDBAtlasCreatesConnectionStringWithDirectConnection()
+    {
+        var appBuilder = DistributedApplication.CreateBuilder();
+        appBuilder
+            .AddMongoDBAtlas("mongodb-atlas")
+            .WithEndpoint("tcp", e => e.AllocatedEndpoint = new AllocatedEndpoint(e, "localhost", 27017));
+
+        using var app = appBuilder.Build();
+
+        var appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+        var serverResource = Assert.Single(appModel.Resources.OfType<MongoDBServerResource>()) as IResourceWithConnectionString;
+        Assert.NotNull(serverResource);
+
+        var connectionString = await serverResource.GetConnectionStringAsync();
+        Assert.Equal("mongodb://localhost:27017/?directConnection=true", connectionString);
+        Assert.Equal("mongodb://{mongodb-atlas.bindings.tcp.host}:{mongodb-atlas.bindings.tcp.port}/?directConnection=true", serverResource.ConnectionStringExpression.ValueExpression);
+    }
+
+    [Fact]
+    public void WithMongoDBAtlasLocalSwitchesImage()
+    {
+        var appBuilder = DistributedApplication.CreateBuilder();
+
+        appBuilder.AddMongoDB("mongodb").WithMongoDBAtlasLocal();
+
+        using var app = appBuilder.Build();
+
+        var appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+        var containerResource = Assert.Single(appModel.Resources.OfType<MongoDBServerResource>());
+        var containerAnnotation = Assert.Single(containerResource.Annotations.OfType<ContainerImageAnnotation>());
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalTag, containerAnnotation.Tag);
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalImage, containerAnnotation.Image);
+        Assert.Equal(MongoDBContainerImageTags.AtlasLocalRegistry, containerAnnotation.Registry);
+    }
+
+    [Fact]
+    public async Task WithMongoDBAtlasLocalAddsDirectConnectionToConnectionString()
+    {
+        var appBuilder = DistributedApplication.CreateBuilder();
+        appBuilder
+            .AddMongoDB("mongodb")
+            .WithMongoDBAtlasLocal()
+            .WithEndpoint("tcp", e => e.AllocatedEndpoint = new AllocatedEndpoint(e, "localhost", 27017));
+
+        using var app = appBuilder.Build();
+
+        var appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+        var serverResource = Assert.Single(appModel.Resources.OfType<MongoDBServerResource>()) as IResourceWithConnectionString;
+        Assert.NotNull(serverResource);
+
+        // When chained on AddMongoDB (which has auth), directConnection is appended after auth params
+#pragma warning disable CS0618 // Type or member is obsolete
+        Assert.EndsWith("&directConnection=true", await serverResource.GetConnectionStringAsync());
+#pragma warning restore CS0618 // Type or member is obsolete
+        Assert.Contains("directConnection=true", serverResource.ConnectionStringExpression.ValueExpression);
+    }
+
+    [Fact]
+    public void AddMongoDBAtlasAddsHealthCheckAnnotationToResource()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var mongo = builder.AddMongoDBAtlas("mongodb-atlas");
+        Assert.Single(mongo.Resource.Annotations, a => a is HealthCheckAnnotation hca && hca.Key == "mongodb-atlas_check");
+    }
+
+    [Fact]
     public void AddMongoDBAddsHealthCheckAnnotationToResource()
     {
         var builder = DistributedApplication.CreateBuilder();
