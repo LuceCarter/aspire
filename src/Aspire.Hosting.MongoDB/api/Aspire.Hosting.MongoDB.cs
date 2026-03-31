@@ -16,6 +16,8 @@ namespace Aspire.Hosting
 
         public static ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> AddMongoDB(this IDistributedApplicationBuilder builder, string name, int? port) { throw null; }
 
+        public static ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> AddMongoDBAtlas(this IDistributedApplicationBuilder builder, string name, int? port = null) { throw null; }
+
         public static ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> WithDataBindMount(this ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> builder, string source, bool isReadOnly = false) { throw null; }
 
         public static ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> WithDataVolume(this ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> builder, string? name = null, bool isReadOnly = false) { throw null; }
@@ -29,6 +31,8 @@ namespace Aspire.Hosting
 
         public static ApplicationModel.IResourceBuilder<T> WithMongoExpress<T>(this ApplicationModel.IResourceBuilder<T> builder, System.Action<ApplicationModel.IResourceBuilder<MongoDB.MongoExpressContainerResource>>? configureContainer = null, string? containerName = null)
             where T : ApplicationModel.MongoDBServerResource { throw null; }
+
+        public static ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> WithMongoDBAtlasLocal(this ApplicationModel.IResourceBuilder<ApplicationModel.MongoDBServerResource> builder) { throw null; }
     }
 }
 

@@ -82,6 +82,12 @@ public class MongoDBServerResource(string name) : ContainerResource(name), IReso
 
     private static ReferenceExpression AuthenticationMechanismReference => ReferenceExpression.Create($"{DefaultAuthenticationMechanism}");
 
+    /// <summary>
+    /// Gets or sets a value indicating whether this resource is configured to use the MongoDB Atlas Local image.
+    /// When <see langword="true"/>, the connection string will include <c>directConnection=true</c>.
+    /// </summary>
+    internal bool IsAtlasLocal { get; set; }
+
     internal ReferenceExpression BuildConnectionString(string? databaseName = null)
     {
         var builder = new ReferenceExpressionBuilder();
@@ -101,7 +107,7 @@ public class MongoDBServerResource(string name) : ContainerResource(name), IReso
 
         builder.Append($"{PrimaryEndpoint.Property(EndpointProperty.HostAndPort)}");
 
-        if (databaseName is not null || PasswordParameter is not null)
+        if (databaseName is not null || PasswordParameter is not null || IsAtlasLocal)
         {
             builder.AppendLiteral("/");
         }
@@ -117,6 +123,14 @@ public class MongoDBServerResource(string name) : ContainerResource(name), IReso
             builder.Append($"{DefaultAuthenticationDatabase:uri}");
             builder.AppendLiteral("&authMechanism=");
             builder.Append($"{DefaultAuthenticationMechanism:uri}");
+            if (IsAtlasLocal)
+            {
+                builder.AppendLiteral("&directConnection=true");
+            }
+        }
+        else if (IsAtlasLocal)
+        {
+            builder.AppendLiteral("?directConnection=true");
         }
 
         return builder.Build();

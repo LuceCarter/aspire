@@ -94,6 +94,78 @@ public static class MongoDBBuilderExtensions
     }
 
     /// <summary>
+    /// Configures a MongoDB container resource to use the MongoDB Atlas Local image (<c>mongodb/mongodb-atlas-local</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The MongoDB Atlas Local image provides a locally-running version of MongoDB Atlas for development and testing.
+    /// When this method is called, the connection string will include <c>directConnection=true</c>.
+    /// </para>
+    /// <para>This version of the package defaults to the <inheritdoc cref="MongoDBContainerImageTags.AtlasLocalTag"/> tag of the <inheritdoc cref="MongoDBContainerImageTags.AtlasLocalImage"/> container image.</para>
+    /// </remarks>
+    /// <param name="builder">The MongoDB resource builder.</param>
+    /// <returns>A reference to the <see cref="IResourceBuilder{T}"/>.</returns>
+    public static IResourceBuilder<MongoDBServerResource> WithMongoDBAtlasLocal(this IResourceBuilder<MongoDBServerResource> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Resource.IsAtlasLocal = true;
+        return builder
+            .WithImage(MongoDBContainerImageTags.AtlasLocalImage, MongoDBContainerImageTags.AtlasLocalTag)
+            .WithImageRegistry(MongoDBContainerImageTags.AtlasLocalRegistry);
+    }
+
+    /// <summary>
+    /// Adds a MongoDB Atlas Local resource to the application model. A container is used for local development.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// MongoDB Atlas Local provides a locally-running version of MongoDB Atlas for development and testing.
+    /// This method creates a MongoDB resource pre-configured with the Atlas Local image and no authentication,
+    /// with a connection string that includes <c>directConnection=true</c>.
+    /// </para>
+    /// <para>This version of the package defaults to the <inheritdoc cref="MongoDBContainerImageTags.AtlasLocalTag"/> tag of the <inheritdoc cref="MongoDBContainerImageTags.AtlasLocalImage"/> container image.</para>
+    /// </remarks>
+    /// <param name="builder">The <see cref="IDistributedApplicationBuilder"/>.</param>
+    /// <param name="name">The name of the resource. This name will be used as the connection string name when referenced in a dependency.</param>
+    /// <param name="port">The host port for MongoDB Atlas Local.</param>
+    /// <returns>A reference to the <see cref="IResourceBuilder{T}"/>.</returns>
+    public static IResourceBuilder<MongoDBServerResource> AddMongoDBAtlas(this IDistributedApplicationBuilder builder, [ResourceName] string name, int? port = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+
+        // Atlas Local runs without authentication by default.
+        var mongoDBContainer = new MongoDBServerResource(name, userNameParameter: null, passwordParameter: null);
+
+        string? connectionString = null;
+
+        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(mongoDBContainer, async (@event, ct) =>
+        {
+            connectionString = await mongoDBContainer.ConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false);
+
+            if (connectionString == null)
+            {
+                throw new DistributedApplicationException($"ConnectionStringAvailableEvent was published for the '{mongoDBContainer.Name}' resource but the connection string was null.");
+            }
+        });
+
+        var healthCheckKey = $"{name}_check";
+        // cache the client so it is reused on subsequent calls to the health check
+        IMongoClient? client = null;
+        builder.Services.AddHealthChecks()
+            .AddMongoDb(
+                sp => client ??= new MongoClient(connectionString ?? throw new InvalidOperationException("Connection string is unavailable")),
+                name: healthCheckKey);
+
+        return builder
+            .AddResource(mongoDBContainer)
+            .WithEndpoint(port: port, targetPort: DefaultContainerPort, name: MongoDBServerResource.PrimaryEndpointName)
+            .WithMongoDBAtlasLocal()
+            .WithHealthCheck(healthCheckKey);
+    }
+
+    /// <summary>
     /// Adds a MongoDB database to the application model.
     /// </summary>
     /// <param name="builder">The MongoDB server resource builder.</param>
